@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ARPG Character Prototype</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="ui-panel">
+            <h2>Character Assembly</h2>
+            <div class="controls">
+                <button id="toggleArms">Toggle Arms</button>
+                <button id="toggleWeapon">Toggle Weapon</button>
+                <button id="resetPosition">Reset Position</button>
+            </div>
+            <div class="stats">
+                <p>Position: <span id="playerPos">400, 300</span></p>
+                <p>State: <span id="playerState">idle</span></p>
+            </div>
+            <div class="instructions">
+                <p><strong>Controls:</strong></p>
+                <p>WASD - Move</p>
+                <p>Space - Attack</p>
+                <p>Click - Attack</p>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+    </div>
+    
+    <script src="js/world.js"></script>
+    <script src="js/character.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
