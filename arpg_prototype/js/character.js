@@ -5,11 +5,39 @@ class Character {
         this.rotation = 0;
         this.speed = 3;
         
+        // Character stats
+        this.maxLife = 100;
+        this.currentLife = this.maxLife;
+        this.damage = 10;
+        this.discipline = 0;
+        this.totalDisciplineEarned = 0; // Track total discipline earned for breakpoints
+        this.disciplineGenerationRate = 1; // discipline per second
+        this.lastDisciplineUpdate = Date.now();
+        
+        // Breakpoint system for natural progression
+        this.disciplineBreakpoints = [
+            { threshold: 0, rate: 1.0, name: "Novice" },
+            { threshold: 100, rate: 1.5, name: "Apprentice" },
+            { threshold: 500, rate: 2.5, name: "Practitioner" },
+            { threshold: 1500, rate: 4.0, name: "Adept" },
+            { threshold: 4000, rate: 6.5, name: "Expert" },
+            { threshold: 10000, rate: 10.0, name: "Master" },
+            { threshold: 25000, rate: 16.0, name: "Grandmaster" },
+            { threshold: 60000, rate: 25.0, name: "Sage" },
+            { threshold: 150000, rate: 40.0, name: "Enlightened" }
+        ];
+        
         // Character state
         this.state = 'idle'; // idle, walking, attacking
         this.animationFrame = 0;
         this.animationTimer = 0;
         this.attackTimer = 0;
+        this.attackProgress = 0; // 0 to 1 for smooth attack animation
+        
+        // Separate walking animation system
+        this.walkAnimationFrame = 0;
+        this.walkAnimationTimer = 0;
+        this.isMoving = false;
         
         // Movement
         this.velocity = { x: 0, y: 0 };
@@ -50,7 +78,7 @@ class Character {
         // Animation offsets for different parts
         this.partOffsets = {
             torso: { x: 0, y: 0 },
-            legs: { x: 0, y: 35 }  // Much lower legs to be fully visible below torso
+            legs: { x: 0, y: 65 }  // Much lower legs to be fully visible below torso
         };
         
         this.loadSprites();
@@ -88,6 +116,7 @@ class Character {
         this.handleMovement();
         this.updateAnimation(deltaTime);
         this.updateAttack(deltaTime);
+        this.updateDiscipline();
     }
     
     handleMovement() {
@@ -109,7 +138,10 @@ class Character {
         this.x += this.velocity.x;
         this.y += this.velocity.y;
         
-        // Update state
+        // Track movement independently of state
+        this.isMoving = (this.velocity.x !== 0 || this.velocity.y !== 0);
+        
+        // Update state (but walking animation runs independently)
         if (this.velocity.x !== 0 || this.velocity.y !== 0) {
             if (this.state !== 'attacking') {
                 this.state = 'walking';
@@ -129,20 +161,36 @@ class Character {
     }
     
     updateAnimation(deltaTime) {
+        // Main animation timer (for general animations)
         this.animationTimer += deltaTime;
-        
-        // Simple animation timing
         if (this.animationTimer > 200) { // 200ms per frame
             this.animationFrame = (this.animationFrame + 1) % 4;
             this.animationTimer = 0;
+        }
+        
+        // Separate faster walking animation (always runs when moving)
+        if (this.isMoving) {
+            this.walkAnimationTimer += deltaTime;
+            if (this.walkAnimationTimer > 120) { // 120ms per frame = faster walking animation
+                this.walkAnimationFrame = (this.walkAnimationFrame + 1) % 8; // 8 frames for smoother cycle
+                this.walkAnimationTimer = 0;
+            }
+        } else {
+            // Reset walking animation when not moving
+            this.walkAnimationFrame = 0;
+            this.walkAnimationTimer = 0;
         }
     }
     
     updateAttack(deltaTime) {
         if (this.attackTimer > 0) {
             this.attackTimer -= deltaTime;
+            // Calculate smooth attack progress (0 to 1)
+            this.attackProgress = 1 - (this.attackTimer / 1500);
+            
             if (this.attackTimer <= 0) {
                 this.state = 'idle';
+                this.attackProgress = 0;
             }
         }
     }
@@ -150,9 +198,123 @@ class Character {
     attack() {
         if (this.state !== 'attacking') {
             this.state = 'attacking';
-            this.attackTimer = 300; // 300ms attack duration
+            this.attackTimer = 1500; // 1.5 second attack duration for smooth animation
+            this.attackProgress = 0;
             this.animationFrame = 0;
         }
+    }
+    
+    updateDiscipline() {
+        const now = Date.now();
+        const timeDiff = (now - this.lastDisciplineUpdate) / 1000; // Convert to seconds
+        
+        if (timeDiff >= 1) { // Update every second
+            // Update generation rate based on breakpoints
+            this.updateDisciplineRate();
+            
+            const disciplineGained = this.disciplineGenerationRate * Math.floor(timeDiff);
+            this.discipline += disciplineGained;
+            this.totalDisciplineEarned += disciplineGained;
+            this.lastDisciplineUpdate = now;
+        }
+    }
+    
+    updateDisciplineRate() {
+        // Find the highest breakpoint we've reached
+        let currentBreakpoint = this.disciplineBreakpoints[0];
+        for (const breakpoint of this.disciplineBreakpoints) {
+            if (this.totalDisciplineEarned >= breakpoint.threshold) {
+                currentBreakpoint = breakpoint;
+            } else {
+                break;
+            }
+        }
+        this.disciplineGenerationRate = currentBreakpoint.rate;
+    }
+    
+    getCurrentBreakpoint() {
+        let currentBreakpoint = this.disciplineBreakpoints[0];
+        for (const breakpoint of this.disciplineBreakpoints) {
+            if (this.totalDisciplineEarned >= breakpoint.threshold) {
+                currentBreakpoint = breakpoint;
+            } else {
+                break;
+            }
+        }
+        return currentBreakpoint;
+    }
+    
+    getNextBreakpoint() {
+        for (const breakpoint of this.disciplineBreakpoints) {
+            if (this.totalDisciplineEarned < breakpoint.threshold) {
+                return breakpoint;
+            }
+        }
+        return null; // Max level reached
+    }
+    
+    // Stat upgrade methods
+    upgradeMaxLife() {
+        const cost = this.getLifeUpgradeCost();
+        if (this.discipline >= cost) {
+            this.discipline -= cost;
+            this.maxLife += 20;
+            this.currentLife = this.maxLife; // Full heal on upgrade
+            return true;
+        }
+        return false;
+    }
+    
+    upgradeDamage() {
+        const cost = this.getDamageUpgradeCost();
+        if (this.discipline >= cost) {
+            this.discipline -= cost;
+            this.damage += 5;
+            return true;
+        }
+        return false;
+    }
+    
+    
+    // Cost calculation methods (exponential scaling)
+    getLifeUpgradeCost() {
+        const baseLife = 100;
+        const currentUpgrades = (this.maxLife - baseLife) / 20;
+        return Math.floor(10 * Math.pow(1.5, currentUpgrades));
+    }
+    
+    getDamageUpgradeCost() {
+        const baseDamage = 10;
+        const currentUpgrades = (this.damage - baseDamage) / 5;
+        return Math.floor(15 * Math.pow(1.6, currentUpgrades));
+    }
+    
+    
+    // Getter methods for UI
+    getStats() {
+        const currentBreakpoint = this.getCurrentBreakpoint();
+        const nextBreakpoint = this.getNextBreakpoint();
+        
+        return {
+            maxLife: this.maxLife,
+            currentLife: this.currentLife,
+            damage: this.damage,
+            discipline: Math.floor(this.discipline),
+            totalDisciplineEarned: Math.floor(this.totalDisciplineEarned),
+            disciplineRate: this.disciplineGenerationRate,
+            currentBreakpoint: currentBreakpoint,
+            nextBreakpoint: nextBreakpoint,
+            progressToNext: nextBreakpoint ? 
+                ((this.totalDisciplineEarned - currentBreakpoint.threshold) / 
+                 (nextBreakpoint.threshold - currentBreakpoint.threshold)) * 100 : 100
+        };
+    }
+    
+    getUpgradeCosts() {
+        return {
+            life: this.getLifeUpgradeCost(),
+            damage: this.getDamageUpgradeCost()
+        };
     }
     
     // Removed mouse rotation - character faces forward
@@ -169,15 +331,18 @@ class Character {
         // Move to character position (no rotation)
         ctx.translate(this.x, this.y);
         
+        // Scale character to half size
+        ctx.scale(0.5, 0.5);
+        
         // Calculate animation offsets
-        const walkOffset = this.state === 'walking' ? 
-            Math.sin(this.animationFrame * Math.PI / 2) * 2 : 0;
+        const walkOffset = this.isMoving ? 
+            Math.sin(this.walkAnimationFrame * Math.PI / 4) * 2 : 0; // Uses separate walk animation
         const attackOffset = this.state === 'attacking' ? 
             Math.sin(this.animationFrame * Math.PI) * 3 : 0;
         
-        // Calculate leg rocking animation
-        const legRockAngle = this.state === 'walking' ? 
-            Math.sin(this.animationFrame * Math.PI / 1.5) * 0.15 : 0;
+        // Calculate leg rocking animation (always based on movement, not state)
+        const legRockAngle = this.isMoving ? 
+            Math.sin(this.walkAnimationFrame * Math.PI / 3) * 0.2 : 0; // Faster and more pronounced
         
         // Render parts in order (back to front)
         this.renderLegs(ctx, legRockAngle);
@@ -220,28 +385,39 @@ class Character {
         
         if (!armSprite || !armSprite.complete || !fistSprite || !fistSprite.complete) return;
         
-        // Calculate sword swing animation
-        const swingProgress = this.state === 'attacking' ? 
-            (this.animationFrame / 4) : 0; // 0 to 1 over attack duration
+        // Calculate smooth sword swing animation
+        const swingProgress = this.state === 'attacking' ? this.attackProgress : 0;
+        
+        // Create a smooth slash motion: starts slow, accelerates, then decelerates
+        // Using easeInOutQuart for dramatic effect
+        const easeProgress = swingProgress < 0.5 
+            ? 8 * swingProgress * swingProgress * swingProgress * swingProgress
+            : 1 - 8 * (1 - swingProgress) * (1 - swingProgress) * (1 - swingProgress) * (1 - swingProgress);
+            
+        // Create a wide slash arc from -90 degrees to +90 degrees
         const swingAngle = this.state === 'attacking' ? 
-            Math.sin(swingProgress * Math.PI) * 1.2 : 0; // Swing arc
+            (easeProgress - 0.5) * Math.PI : 0; // -π/2 to +π/2 radians
         
         // Render both arms with multiple segments
         ['leftArm', 'rightArm'].forEach(armSide => {
             const armData = this.armConfig[armSide];
             let lastSegmentEnd = { x: 0, y: 0 };
             
-            // Calculate arm swing for attack animation
+            // Calculate arm swing for attack animation with enhanced motion
             const isRightArm = armSide === 'rightArm';
-            const armSwingOffset = isRightArm && this.state === 'attacking' ? swingAngle : 0;
+            const armSwingOffset = isRightArm && this.state === 'attacking' ? swingAngle * 0.8 : 0;
+            
+            // Add shoulder movement for more natural motion
+            const shoulderOffset = isRightArm && this.state === 'attacking' ? 
+                Math.sin(swingProgress * Math.PI) * 8 : 0;
             
             // Render arm segments
             armData.segments.forEach((segment, index) => {
                 ctx.save();
                 
-                // Position for this segment with swing animation
-                const segmentX = segment.x + (attackOffset * (isRightArm ? 1 : -1));
-                const segmentY = segment.y + attackOffset * 0.5;
+                // Position for this segment with enhanced swing animation
+                const segmentX = segment.x + (attackOffset * (isRightArm ? 1 : -1)) + (isRightArm ? shoulderOffset : 0);
+                const segmentY = segment.y + attackOffset * 0.5 + (isRightArm ? shoulderOffset * 0.3 : 0);
                 
                 ctx.translate(segmentX, segmentY);
                 
@@ -267,29 +443,27 @@ class Character {
             ctx.save();
             ctx.translate(lastSegmentEnd.x, lastSegmentEnd.y);
             
-            // Add fist rotation for swing
-            const fistRotation = isRightArm ? armSwingOffset * 0.5 : 0;
+            // Add fist rotation for swing with wrist snap effect
+            const wristSnapProgress = this.state === 'attacking' && swingProgress > 0.6 ? 
+                (swingProgress - 0.6) / 0.4 : 0; // Wrist snap in final 40% of swing
+            const fistRotation = isRightArm ? 
+                (armSwingOffset * 0.5) + (wristSnapProgress * 0.8) : 0;
             ctx.rotate(fistRotation);
             
             ctx.drawImage(fistSprite, -fistSprite.width/2, -fistSprite.height/2);
             
-            // Render weapon attached to right fist with dramatic swing
+            // Render weapon attached to right fist (inherits fist rotation)
             if (this.partVisibility.weapon && weaponSprite && weaponSprite.complete && isRightArm) {
-                ctx.save();
-                
-                // Position weapon relative to fist
+                // Position weapon relative to fist (weapon inherits all fist transformations)
                 const weaponOffsetX = fistSprite.width * 0.3;
                 const weaponOffsetY = -fistSprite.height * 0.2;
                 ctx.translate(weaponOffsetX, weaponOffsetY);
                 
-                // Dramatic sword swing rotation
-                const weaponSwingRotation = this.state === 'attacking' ? 
-                    0.2 + (swingAngle * 1.5) : 0.2;
-                ctx.rotate(weaponSwingRotation);
+                // Only add a small base rotation - weapon inherits all swing motion from fist
+                const baseWeaponRotation = 0.2; // Base sword angle relative to fist
+                ctx.rotate(baseWeaponRotation);
                 
                 ctx.drawImage(weaponSprite, -weaponSprite.width/2, -weaponSprite.height/2);
-                
-                ctx.restore();
             }
             
             ctx.restore();

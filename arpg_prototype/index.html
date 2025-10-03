@@ -16,8 +16,35 @@
                 <button id="resetPosition">Reset Position</button>
             </div>
             <div class="stats">
+                <h3>Character Stats</h3>
+                <p>Life: <span id="playerLife">100/100</span></p>
+                <p>Damage: <span id="playerDamage">10</span></p>
+                <p>Discipline: <span id="playerDiscipline">0</span> (+<span id="disciplineRate">1</span>/sec)</p>
+                <hr>
                 <p>Position: <span id="playerPos">400, 300</span></p>
                 <p>State: <span id="playerState">idle</span></p>
+            </div>
+            <div class="progression">
+                <h3>Discipline Mastery</h3>
+                <p>Current Rank: <span id="currentRank">Novice</span></p>
+                <p>Total Earned: <span id="totalDiscipline">0</span></p>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div id="progressFill" class="progress-fill"></div>
+                    </div>
+                    <p class="next-rank">Next: <span id="nextRank">Apprentice</span> at <span id="nextThreshold">100</span></p>
+                </div>
+            </div>
+            <div class="upgrades">
+                <h3>Upgrades</h3>
+                <div class="upgrade-row">
+                    <button id="upgradeLife">Upgrade Life (+20)</button>
+                    <span class="cost">Cost: <span id="lifeCost">10</span> Discipline</span>
+                </div>
+                <div class="upgrade-row">
+                    <button id="upgradeDamage">Upgrade Damage (+5)</button>
+                    <span class="cost">Cost: <span id="damageCost">15</span> Discipline</span>
+                </div>
             </div>
             <div class="instructions">
                 <p><strong>Controls:</strong></p>

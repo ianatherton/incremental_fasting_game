@@ -19,6 +19,23 @@ class Game {
         this.playerPosElement = document.getElementById('playerPos');
         this.playerStateElement = document.getElementById('playerState');
         
+        // Stats UI elements
+        this.playerLifeElement = document.getElementById('playerLife');
+        this.playerDamageElement = document.getElementById('playerDamage');
+        this.playerDisciplineElement = document.getElementById('playerDiscipline');
+        this.disciplineRateElement = document.getElementById('disciplineRate');
+        
+        // Cost UI elements
+        this.lifeCostElement = document.getElementById('lifeCost');
+        this.damageCostElement = document.getElementById('damageCost');
+        
+        // Progression UI elements
+        this.currentRankElement = document.getElementById('currentRank');
+        this.totalDisciplineElement = document.getElementById('totalDiscipline');
+        this.progressFillElement = document.getElementById('progressFill');
+        this.nextRankElement = document.getElementById('nextRank');
+        this.nextThresholdElement = document.getElementById('nextThreshold');
+        
         this.setupEventListeners();
         this.gameLoop();
     }
@@ -58,6 +75,16 @@ class Game {
             this.character.y = 750;
         });
         
+        // Upgrade button event listeners
+        document.getElementById('upgradeLife').addEventListener('click', () => {
+            this.character.upgradeMaxLife();
+        });
+        
+        document.getElementById('upgradeDamage').addEventListener('click', () => {
+            this.character.upgradeDamage();
+        });
+        
+        
         // Prevent context menu on right click
         this.canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
@@ -79,6 +106,39 @@ class Game {
         const pos = this.character.getPosition();
         this.playerPosElement.textContent = `${pos.x}, ${pos.y}`;
         this.playerStateElement.textContent = this.character.getState();
+        
+        // Update character stats
+        const stats = this.character.getStats();
+        this.playerLifeElement.textContent = `${stats.currentLife}/${stats.maxLife}`;
+        this.playerDamageElement.textContent = stats.damage;
+        this.playerDisciplineElement.textContent = stats.discipline;
+        this.disciplineRateElement.textContent = stats.disciplineRate.toFixed(1);
+        
+        // Update progression display
+        this.currentRankElement.textContent = stats.currentBreakpoint.name;
+        this.totalDisciplineElement.textContent = stats.totalDisciplineEarned;
+        
+        if (stats.nextBreakpoint) {
+            this.nextRankElement.textContent = stats.nextBreakpoint.name;
+            this.nextThresholdElement.textContent = stats.nextBreakpoint.threshold;
+            this.progressFillElement.style.width = `${Math.min(stats.progressToNext, 100)}%`;
+        } else {
+            this.nextRankElement.textContent = "MAX RANK";
+            this.nextThresholdElement.textContent = "∞";
+            this.progressFillElement.style.width = "100%";
+        }
+        
+        // Update upgrade costs
+        const costs = this.character.getUpgradeCosts();
+        this.lifeCostElement.textContent = costs.life;
+        this.damageCostElement.textContent = costs.damage;
+        
+        // Update button states based on affordability
+        const upgradeLifeBtn = document.getElementById('upgradeLife');
+        const upgradeDamageBtn = document.getElementById('upgradeDamage');
+        
+        upgradeLifeBtn.disabled = stats.discipline < costs.life;
+        upgradeDamageBtn.disabled = stats.discipline < costs.damage;
     }
     
     render() {
@@ -148,19 +208,38 @@ class Game {
         // Convert character world position to screen position for overlay
         const screenPos = this.world.worldToScreen(this.character.x, this.character.y);
         
-        // Draw attack indicator
+        // Draw enhanced attack indicator with slash trail
         if (this.character.state === 'attacking') {
-            this.ctx.strokeStyle = '#ff4444';
-            this.ctx.lineWidth = 3;
+            const attackProgress = this.character.attackProgress;
+            
+            // Create a slash trail effect that follows the sword motion
+            const slashAngle = (attackProgress - 0.5) * Math.PI; // -π/2 to +π/2
+            const trailLength = 80;
+            const trailStartX = screenPos.x + Math.cos(slashAngle - Math.PI/2) * trailLength * 0.7;
+            const trailStartY = screenPos.y + Math.sin(slashAngle - Math.PI/2) * trailLength * 0.7;
+            const trailEndX = screenPos.x + Math.cos(slashAngle + Math.PI/2) * trailLength * 0.7;
+            const trailEndY = screenPos.y + Math.sin(slashAngle + Math.PI/2) * trailLength * 0.7;
+            
+            // Draw slash trail with gradient effect
+            const gradient = this.ctx.createLinearGradient(trailStartX, trailStartY, trailEndX, trailEndY);
+            gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(255, 170, 68, 0.9)');
+            gradient.addColorStop(1, 'rgba(255, 68, 68, 0.6)');
+            
+            this.ctx.strokeStyle = gradient;
+            this.ctx.lineWidth = 6 * (1 - Math.abs(attackProgress - 0.5) * 2); // Thicker in middle of swing
+            this.ctx.lineCap = 'round';
             this.ctx.beginPath();
-            this.ctx.arc(screenPos.x, screenPos.y, 50, 0, Math.PI * 2);
+            this.ctx.moveTo(trailStartX, trailStartY);
+            this.ctx.lineTo(trailEndX, trailEndY);
             this.ctx.stroke();
             
-            // Draw sword trail effect
-            this.ctx.strokeStyle = '#ffaa44';
-            this.ctx.lineWidth = 2;
+            // Draw impact circle that grows during attack
+            const impactRadius = 30 + (attackProgress * 40);
+            this.ctx.strokeStyle = `rgba(255, 68, 68, ${0.8 - attackProgress * 0.6})`;
+            this.ctx.lineWidth = 3;
             this.ctx.beginPath();
-            this.ctx.arc(screenPos.x, screenPos.y, 60, 0, Math.PI * 2);
+            this.ctx.arc(screenPos.x, screenPos.y, impactRadius, 0, Math.PI * 2);
             this.ctx.stroke();
         }
         

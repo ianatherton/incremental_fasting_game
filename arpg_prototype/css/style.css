@@ -65,6 +65,115 @@ body {
     font-size: 12px;
 }
 
+.stats h3 {
+    margin: 0 0 10px 0;
+    color: #4CAF50;
+    font-size: 14px;
+}
+
+.stats hr {
+    border: none;
+    border-top: 1px solid #555;
+    margin: 10px 0;
+}
+
+.progression {
+    background: #333;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.progression h3 {
+    margin: 0 0 15px 0;
+    color: #9C27B0;
+    font-size: 14px;
+}
+
+.progression p {
+    margin: 5px 0;
+    font-size: 12px;
+}
+
+.progress-container {
+    margin-top: 10px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 12px;
+    background: #555;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 5px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #9C27B0, #E91E63);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.next-rank {
+    font-size: 10px;
+    color: #bbb;
+    margin: 5px 0 0 0;
+}
+
+.upgrades {
+    background: #333;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.upgrades h3 {
+    margin: 0 0 15px 0;
+    color: #FF9800;
+    font-size: 14px;
+}
+
+.upgrade-row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+
+.upgrade-row button {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 5px;
+    background: #FF9800;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    transition: background-color 0.2s;
+}
+
+.upgrade-row button:hover:not(:disabled) {
+    background: #F57C00;
+}
+
+.upgrade-row button:active:not(:disabled) {
+    background: #E65100;
+}
+
+.upgrade-row button:disabled {
+    background: #666;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.cost {
+    font-size: 10px;
+    color: #bbb;
+    text-align: center;
+}
+
 .instructions {
     background: #333;
     padding: 15px;
