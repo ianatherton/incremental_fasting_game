@@ -10,21 +10,24 @@ class Character {
         this.currentLife = this.maxLife;
         this.damage = 10;
         this.discipline = 0;
-        this.totalDisciplineEarned = 0; // Track total discipline earned for breakpoints
         this.disciplineGenerationRate = 1; // discipline per second
         this.lastDisciplineUpdate = Date.now();
         
-        // Breakpoint system for natural progression
-        this.disciplineBreakpoints = [
-            { threshold: 0, rate: 1.0, name: "Novice" },
-            { threshold: 100, rate: 1.5, name: "Apprentice" },
-            { threshold: 500, rate: 2.5, name: "Practitioner" },
-            { threshold: 1500, rate: 4.0, name: "Adept" },
-            { threshold: 4000, rate: 6.5, name: "Expert" },
-            { threshold: 10000, rate: 10.0, name: "Master" },
-            { threshold: 25000, rate: 16.0, name: "Grandmaster" },
-            { threshold: 60000, rate: 25.0, name: "Sage" },
-            { threshold: 150000, rate: 40.0, name: "Enlightened" }
+        // Fasting quest system
+        this.questStartTime = this.loadQuestStartTime(); // Load from localStorage or null
+        this.isQuestActive = this.questStartTime !== null;
+        
+        // Time-based breakpoint system (in minutes)
+        this.fastingBreakpoints = [
+            { minutes: 0, rate: 1.0, name: "Beginning", description: "Starting your journey" },
+            { minutes: 60, rate: 1.5, name: "Focused", description: "1 hour of discipline" },
+            { minutes: 240, rate: 2.5, name: "Determined", description: "4 hours of commitment" },
+            { minutes: 480, rate: 4.0, name: "Resilient", description: "8 hours of strength" },
+            { minutes: 720, rate: 6.5, name: "Dedicated", description: "12 hours of perseverance" },
+            { minutes: 1440, rate: 10.0, name: "Steadfast", description: "1 day of discipline" },
+            { minutes: 2880, rate: 16.0, name: "Unwavering", description: "2 days of commitment" },
+            { minutes: 4320, rate: 25.0, name: "Transcendent", description: "3 days of mastery" },
+            { minutes: 7200, rate: 40.0, name: "Enlightened", description: "5 days of pure discipline" }
         ];
         
         // Character state
@@ -82,6 +85,50 @@ class Character {
         };
         
         this.loadSprites();
+        
+        // Update discipline rate based on current fasting time
+        if (this.isQuestActive) {
+            this.updateDisciplineRate();
+        }
+    }
+    
+    loadQuestStartTime() {
+        const stored = localStorage.getItem('fastingQuestStartTime');
+        return stored ? new Date(stored) : null;
+    }
+    
+    startQuest(startDateTime) {
+        this.questStartTime = new Date(startDateTime);
+        this.isQuestActive = true;
+        localStorage.setItem('fastingQuestStartTime', this.questStartTime.toISOString());
+        this.updateDisciplineRate();
+    }
+    
+    resetQuest() {
+        this.questStartTime = null;
+        this.isQuestActive = false;
+        this.disciplineGenerationRate = 1.0;
+        localStorage.removeItem('fastingQuestStartTime');
+    }
+    
+    getFastingDurationMinutes() {
+        if (!this.isQuestActive || !this.questStartTime) return 0;
+        return Math.max(0, (Date.now() - this.questStartTime.getTime()) / (1000 * 60));
+    }
+    
+    formatFastingDuration() {
+        const totalMinutes = this.getFastingDurationMinutes();
+        const days = Math.floor(totalMinutes / 1440);
+        const hours = Math.floor((totalMinutes % 1440) / 60);
+        const minutes = Math.floor(totalMinutes % 60);
+        
+        if (days > 0) {
+            return `${days}d ${hours}h ${minutes}m`;
+        } else if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        } else {
+            return `${minutes}m`;
+        }
     }
     
     loadSprites() {
@@ -205,25 +252,35 @@ class Character {
     }
     
     updateDiscipline() {
+        if (!this.isQuestActive) {
+            return; // No discipline generation if quest isn't active
+        }
+        
         const now = Date.now();
         const timeDiff = (now - this.lastDisciplineUpdate) / 1000; // Convert to seconds
         
         if (timeDiff >= 1) { // Update every second
-            // Update generation rate based on breakpoints
+            // Update generation rate based on fasting time
             this.updateDisciplineRate();
             
             const disciplineGained = this.disciplineGenerationRate * Math.floor(timeDiff);
             this.discipline += disciplineGained;
-            this.totalDisciplineEarned += disciplineGained;
             this.lastDisciplineUpdate = now;
         }
     }
     
     updateDisciplineRate() {
-        // Find the highest breakpoint we've reached
-        let currentBreakpoint = this.disciplineBreakpoints[0];
-        for (const breakpoint of this.disciplineBreakpoints) {
-            if (this.totalDisciplineEarned >= breakpoint.threshold) {
+        if (!this.isQuestActive) {
+            this.disciplineGenerationRate = 1.0;
+            return;
+        }
+        
+        const fastingMinutes = this.getFastingDurationMinutes();
+        
+        // Find the highest breakpoint we've reached based on fasting time
+        let currentBreakpoint = this.fastingBreakpoints[0];
+        for (const breakpoint of this.fastingBreakpoints) {
+            if (fastingMinutes >= breakpoint.minutes) {
                 currentBreakpoint = breakpoint;
             } else {
                 break;
@@ -233,9 +290,14 @@ class Character {
     }
     
     getCurrentBreakpoint() {
-        let currentBreakpoint = this.disciplineBreakpoints[0];
-        for (const breakpoint of this.disciplineBreakpoints) {
-            if (this.totalDisciplineEarned >= breakpoint.threshold) {
+        if (!this.isQuestActive) {
+            return { minutes: 0, rate: 1.0, name: "Not Started", description: "Quest not active" };
+        }
+        
+        const fastingMinutes = this.getFastingDurationMinutes();
+        let currentBreakpoint = this.fastingBreakpoints[0];
+        for (const breakpoint of this.fastingBreakpoints) {
+            if (fastingMinutes >= breakpoint.minutes) {
                 currentBreakpoint = breakpoint;
             } else {
                 break;
@@ -245,8 +307,13 @@ class Character {
     }
     
     getNextBreakpoint() {
-        for (const breakpoint of this.disciplineBreakpoints) {
-            if (this.totalDisciplineEarned < breakpoint.threshold) {
+        if (!this.isQuestActive) {
+            return this.fastingBreakpoints[0];
+        }
+        
+        const fastingMinutes = this.getFastingDurationMinutes();
+        for (const breakpoint of this.fastingBreakpoints) {
+            if (fastingMinutes < breakpoint.minutes) {
                 return breakpoint;
             }
         }
@@ -294,19 +361,28 @@ class Character {
     getStats() {
         const currentBreakpoint = this.getCurrentBreakpoint();
         const nextBreakpoint = this.getNextBreakpoint();
+        const fastingMinutes = this.getFastingDurationMinutes();
+        
+        let progressToNext = 100;
+        if (nextBreakpoint && this.isQuestActive) {
+            const currentMinutes = fastingMinutes - currentBreakpoint.minutes;
+            const totalMinutesNeeded = nextBreakpoint.minutes - currentBreakpoint.minutes;
+            progressToNext = (currentMinutes / totalMinutesNeeded) * 100;
+        }
         
         return {
             maxLife: this.maxLife,
             currentLife: this.currentLife,
             damage: this.damage,
             discipline: Math.floor(this.discipline),
-            totalDisciplineEarned: Math.floor(this.totalDisciplineEarned),
             disciplineRate: this.disciplineGenerationRate,
+            isQuestActive: this.isQuestActive,
+            questStartTime: this.questStartTime,
+            fastingDuration: this.formatFastingDuration(),
+            fastingMinutes: Math.floor(fastingMinutes),
             currentBreakpoint: currentBreakpoint,
             nextBreakpoint: nextBreakpoint,
-            progressToNext: nextBreakpoint ? 
-                ((this.totalDisciplineEarned - currentBreakpoint.threshold) / 
-                 (nextBreakpoint.threshold - currentBreakpoint.threshold)) * 100 : 100
+            progressToNext: Math.min(progressToNext, 100)
         };
     }
     
@@ -343,13 +419,17 @@ class Character {
         // Calculate leg rocking animation (always based on movement, not state)
         const legRockAngle = this.isMoving ? 
             Math.sin(this.walkAnimationFrame * Math.PI / 3) * 0.2 : 0; // Faster and more pronounced
+            
+        // Calculate torso bounce animation (vertical bounce while moving)
+        const torsoBounce = this.isMoving ? 
+            Math.sin(this.walkAnimationFrame * Math.PI / 2) * 3 : 0; // Gentle up/down bounce
         
         // Render parts in order (back to front)
         this.renderLegs(ctx, legRockAngle);
-        this.renderPart(ctx, 'torso', 0);
+        this.renderPart(ctx, 'torso', torsoBounce);
         
         if (this.partVisibility.arms) {
-            this.renderArms(ctx, attackOffset);
+            this.renderArms(ctx, attackOffset, torsoBounce);
         }
         
         ctx.restore();
@@ -378,7 +458,7 @@ class Character {
         ctx.restore();
     }
     
-    renderArms(ctx, attackOffset) {
+    renderArms(ctx, attackOffset, torsoBounce = 0) {
         const armSprite = this.parts.arms;
         const fistSprite = this.parts.fists;
         const weaponSprite = this.parts.weapon;
@@ -415,9 +495,9 @@ class Character {
             armData.segments.forEach((segment, index) => {
                 ctx.save();
                 
-                // Position for this segment with enhanced swing animation
+                // Position for this segment with enhanced swing animation and torso bounce
                 const segmentX = segment.x + (attackOffset * (isRightArm ? 1 : -1)) + (isRightArm ? shoulderOffset : 0);
-                const segmentY = segment.y + attackOffset * 0.5 + (isRightArm ? shoulderOffset * 0.3 : 0);
+                const segmentY = segment.y + attackOffset * 0.5 + (isRightArm ? shoulderOffset * 0.3 : 0) + torsoBounce;
                 
                 ctx.translate(segmentX, segmentY);
                 

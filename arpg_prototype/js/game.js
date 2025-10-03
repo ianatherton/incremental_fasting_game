@@ -29,9 +29,15 @@ class Game {
         this.lifeCostElement = document.getElementById('lifeCost');
         this.damageCostElement = document.getElementById('damageCost');
         
+        // Quest control UI elements
+        this.questSetupElement = document.getElementById('questSetup');
+        this.questActiveElement = document.getElementById('questActive');
+        this.questStartInputElement = document.getElementById('questStartInput');
+        this.fastingDurationElement = document.getElementById('fastingDuration');
+        
         // Progression UI elements
         this.currentRankElement = document.getElementById('currentRank');
-        this.totalDisciplineElement = document.getElementById('totalDiscipline');
+        this.stageDescriptionElement = document.getElementById('stageDescription');
         this.progressFillElement = document.getElementById('progressFill');
         this.nextRankElement = document.getElementById('nextRank');
         this.nextThresholdElement = document.getElementById('nextThreshold');
@@ -84,6 +90,22 @@ class Game {
             this.character.upgradeDamage();
         });
         
+        // Quest control event listeners
+        document.getElementById('startQuestBtn').addEventListener('click', () => {
+            const startTime = this.questStartInputElement.value;
+            if (startTime) {
+                this.character.startQuest(startTime);
+                this.updateQuestUI();
+            }
+        });
+        
+        document.getElementById('resetQuestBtn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to reset your fasting quest? This will clear all progress.')) {
+                this.character.resetQuest();
+                this.updateQuestUI();
+            }
+        });
+        
         
         // Prevent context menu on right click
         this.canvas.addEventListener('contextmenu', (e) => {
@@ -94,12 +116,34 @@ class Game {
         this.canvas.addEventListener('click', () => {
             this.canvas.focus();
         });
+        
+        // Test cursor loading
+        this.testCursorLoading();
     }
     
     update(deltaTime) {
         this.character.update(deltaTime);
         this.world.updateCamera(this.character.x, this.character.y);
         this.updateUI();
+        this.updateQuestUI();
+    }
+    
+    updateQuestUI() {
+        const stats = this.character.getStats();
+        
+        if (stats.isQuestActive) {
+            this.questSetupElement.style.display = 'none';
+            this.questActiveElement.style.display = 'block';
+            this.fastingDurationElement.textContent = stats.fastingDuration;
+        } else {
+            this.questSetupElement.style.display = 'block';
+            this.questActiveElement.style.display = 'none';
+            
+            // Set default start time to now
+            const now = new Date();
+            const localISOTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            this.questStartInputElement.value = localISOTime;
+        }
     }
     
     updateUI() {
@@ -116,12 +160,25 @@ class Game {
         
         // Update progression display
         this.currentRankElement.textContent = stats.currentBreakpoint.name;
-        this.totalDisciplineElement.textContent = stats.totalDisciplineEarned;
+        this.stageDescriptionElement.textContent = stats.currentBreakpoint.description;
         
-        if (stats.nextBreakpoint) {
+        if (stats.nextBreakpoint && stats.isQuestActive) {
             this.nextRankElement.textContent = stats.nextBreakpoint.name;
-            this.nextThresholdElement.textContent = stats.nextBreakpoint.threshold;
+            const timeToNext = stats.nextBreakpoint.minutes - stats.fastingMinutes;
+            const hours = Math.floor(timeToNext / 60);
+            const minutes = Math.floor(timeToNext % 60);
+            
+            if (hours > 0) {
+                this.nextThresholdElement.textContent = `${hours}h ${minutes}m`;
+            } else {
+                this.nextThresholdElement.textContent = `${minutes}m`;
+            }
+            
             this.progressFillElement.style.width = `${Math.min(stats.progressToNext, 100)}%`;
+        } else if (stats.nextBreakpoint) {
+            this.nextRankElement.textContent = stats.nextBreakpoint.name;
+            this.nextThresholdElement.textContent = "Start quest";
+            this.progressFillElement.style.width = "0%";
         } else {
             this.nextRankElement.textContent = "MAX RANK";
             this.nextThresholdElement.textContent = "∞";
@@ -247,6 +304,21 @@ class Game {
         this.ctx.fillStyle = '#4CAF50';
         this.ctx.font = '12px Courier New';
         this.ctx.fillText(`Camera: ${Math.round(this.world.camera.x)}, ${Math.round(this.world.camera.y)}`, 10, this.canvas.height - 20);
+    }
+    
+    testCursorLoading() {
+        // Test if cursor image can be loaded
+        const testImg = new Image();
+        testImg.onload = () => {
+            console.log('✓ Cursor image loaded successfully');
+            // Force cursor update
+            this.canvas.style.cursor = "url('assets/sprites/cursor.png') 8 8, crosshair";
+        };
+        testImg.onerror = () => {
+            console.error('✗ Failed to load cursor image');
+            console.log('Falling back to crosshair cursor');
+        };
+        testImg.src = 'assets/sprites/cursor.png';
     }
     
     gameLoop(currentTime = 0) {
