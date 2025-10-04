@@ -7,17 +7,110 @@ body {
     overflow: hidden;
 }
 
+/* Top Health Bar */
+.health-bar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: rgba(26, 26, 26, 0.9);
+    border-bottom: 2px solid #444;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    box-sizing: border-box;
+}
+
+.health-bar {
+    position: relative;
+    width: 100%;
+    max-width: 600px;
+    height: 24px;
+    background: #333;
+    border: 2px solid #555;
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 0 auto;
+}
+
+.health-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #66BB6A);
+    width: 100%;
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+.health-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+}
+
 .game-container {
     display: flex;
-    height: 100vh;
+    height: calc(100vh - 40px);
+    margin-top: 40px;
 }
 
 .ui-panel {
     width: 250px;
+    height: calc(100vh - 40px);
     background: #2a2a2a;
     padding: 20px;
     border-right: 2px solid #444;
     box-sizing: border-box;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+}
+
+.ui-panel:focus {
+    outline: none;
+}
+
+/* Custom scrollbar styling for UI panel */
+.ui-panel::-webkit-scrollbar {
+    width: 14px;
+}
+
+.ui-panel::-webkit-scrollbar-track {
+    background: #1a1a1a;
+    border-radius: 7px;
+    margin: 2px;
+}
+
+.ui-panel::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #4CAF50, #45a049);
+    border-radius: 7px;
+    border: 1px solid #333;
+    min-height: 30px;
+}
+
+.ui-panel::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #45a049, #3d8b40);
+}
+
+.ui-panel::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(180deg, #3d8b40, #2e7d32);
+}
+
+.ui-panel::-webkit-scrollbar-corner {
+    background: #1a1a1a;
+}
+
+/* Firefox scrollbar styling */
+.ui-panel {
+    scrollbar-width: thin;
+    scrollbar-color: #4CAF50 #1a1a1a;
 }
 
 .ui-panel h2 {
@@ -233,6 +326,55 @@ body {
     font-size: 10px;
     color: #bbb;
     text-align: center;
+}
+
+.achievements {
+    background: #333;
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.achievements h3 {
+    margin: 0 0 15px 0;
+    color: #FFD700;
+    font-size: 14px;
+}
+
+.achievement-list {
+    max-height: 150px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 5px;
+}
+
+.achievement-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.achievement-list::-webkit-scrollbar-track {
+    background: #222;
+    border-radius: 4px;
+}
+
+.achievement-list::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #FFD700, #FFA000);
+    border-radius: 4px;
+    border: 1px solid #333;
+}
+
+.achievement-list::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #FFA000, #FF8F00);
+}
+
+.achievement-list p {
+    margin: 8px 0;
+    font-size: 11px;
+    color: #ccc;
+    padding: 5px;
+    background: #444;
+    border-radius: 3px;
+    border-left: 3px solid #FFD700;
 }
 
 .instructions {

@@ -19,6 +19,10 @@ class Game {
         this.playerPosElement = document.getElementById('playerPos');
         this.playerStateElement = document.getElementById('playerState');
         
+        // Top health bar elements
+        this.healthFillElement = document.getElementById('healthFill');
+        this.healthTextElement = document.getElementById('healthText');
+        
         // Stats UI elements
         this.playerLifeElement = document.getElementById('playerLife');
         this.playerDamageElement = document.getElementById('playerDamage');
@@ -28,6 +32,7 @@ class Game {
         // Cost UI elements
         this.lifeCostElement = document.getElementById('lifeCost');
         this.damageCostElement = document.getElementById('damageCost');
+        this.disciplineRateCostElement = document.getElementById('disciplineRateCost');
         
         // Quest control UI elements
         this.questSetupElement = document.getElementById('questSetup');
@@ -90,6 +95,10 @@ class Game {
             this.character.upgradeDamage();
         });
         
+        document.getElementById('upgradeDisciplineRate').addEventListener('click', () => {
+            this.character.upgradeDisciplineRate();
+        });
+        
         // Quest control event listeners
         document.getElementById('startQuestBtn').addEventListener('click', () => {
             const startTime = this.questStartInputElement.value;
@@ -119,6 +128,9 @@ class Game {
         
         // Test cursor loading
         this.testCursorLoading();
+        
+        // Ensure UI panel scrolling works
+        this.setupUIScrolling();
     }
     
     update(deltaTime) {
@@ -158,6 +170,20 @@ class Game {
         this.playerDisciplineElement.textContent = stats.discipline;
         this.disciplineRateElement.textContent = stats.disciplineRate.toFixed(1);
         
+        // Update top health bar
+        const healthPercentage = (stats.currentLife / stats.maxLife) * 100;
+        this.healthFillElement.style.width = `${healthPercentage}%`;
+        this.healthTextElement.textContent = `${stats.currentLife}/${stats.maxLife}`;
+        
+        // Change health bar color based on health percentage
+        if (healthPercentage > 60) {
+            this.healthFillElement.style.background = 'linear-gradient(90deg, #4CAF50, #66BB6A)';
+        } else if (healthPercentage > 30) {
+            this.healthFillElement.style.background = 'linear-gradient(90deg, #FF9800, #FFB74D)';
+        } else {
+            this.healthFillElement.style.background = 'linear-gradient(90deg, #F44336, #EF5350)';
+        }
+        
         // Update progression display
         this.currentRankElement.textContent = stats.currentBreakpoint.name;
         this.stageDescriptionElement.textContent = stats.currentBreakpoint.description;
@@ -189,13 +215,16 @@ class Game {
         const costs = this.character.getUpgradeCosts();
         this.lifeCostElement.textContent = costs.life;
         this.damageCostElement.textContent = costs.damage;
+        this.disciplineRateCostElement.textContent = costs.disciplineRate;
         
         // Update button states based on affordability
         const upgradeLifeBtn = document.getElementById('upgradeLife');
         const upgradeDamageBtn = document.getElementById('upgradeDamage');
+        const upgradeDisciplineRateBtn = document.getElementById('upgradeDisciplineRate');
         
         upgradeLifeBtn.disabled = stats.discipline < costs.life;
         upgradeDamageBtn.disabled = stats.discipline < costs.damage;
+        upgradeDisciplineRateBtn.disabled = stats.discipline < costs.disciplineRate;
     }
     
     render() {
@@ -304,6 +333,23 @@ class Game {
         this.ctx.fillStyle = '#4CAF50';
         this.ctx.font = '12px Courier New';
         this.ctx.fillText(`Camera: ${Math.round(this.world.camera.x)}, ${Math.round(this.world.camera.y)}`, 10, this.canvas.height - 20);
+    }
+    
+    setupUIScrolling() {
+        const uiPanel = document.querySelector('.ui-panel');
+        if (uiPanel) {
+            // Force focus on UI panel for wheel events
+            uiPanel.addEventListener('mouseenter', () => {
+                uiPanel.focus();
+            });
+            
+            // Prevent wheel events from bubbling to canvas
+            uiPanel.addEventListener('wheel', (e) => {
+                e.stopPropagation();
+            });
+            
+            console.log('✓ UI panel scrolling setup complete');
+        }
     }
     
     testCursorLoading() {

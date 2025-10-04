@@ -7,8 +7,16 @@
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+    <!-- Top Health Bar -->
+    <div class="health-bar-container">
+        <div class="health-bar">
+            <div class="health-fill" id="healthFill"></div>
+            <div class="health-text" id="healthText">100/100</div>
+        </div>
+    </div>
+    
     <div class="game-container">
-        <div class="ui-panel">
+        <div class="ui-panel" tabindex="0">
             <h2>Character Assembly</h2>
             <div class="controls">
                 <button id="toggleArms">Toggle Arms</button>
@@ -56,6 +64,27 @@
                 <div class="upgrade-row">
                     <button id="upgradeDamage">Upgrade Damage (+5)</button>
                     <span class="cost">Cost: <span id="damageCost">15</span> Discipline</span>
+                </div>
+                <div class="upgrade-row">
+                    <button id="upgradeDisciplineRate">Upgrade Discipline Rate (+0.5/sec)</button>
+                    <span class="cost">Cost: <span id="disciplineRateCost">25</span> Discipline</span>
+                </div>
+            </div>
+            <div class="achievements">
+                <h3>Achievements</h3>
+                <div class="achievement-list">
+                    <p>🏆 First Fast - Complete your first 1-hour fast</p>
+                    <p>⚡ Discipline Master - Reach 100 Discipline</p>
+                    <p>💪 Strong Body - Upgrade Life 5 times</p>
+                    <p>⚔️ Warrior - Upgrade Damage 5 times</p>
+                    <p>🧘 Zen Master - Complete a 24-hour fast</p>
+                    <p>🔥 Speed Demon - Upgrade Discipline Rate 3 times</p>
+                    <p>🌟 Legendary - Reach 1000 Discipline</p>
+                    <p>⏰ Marathon - Complete a 48-hour fast</p>
+                    <p>🎯 Precision - Upgrade all stats to level 10</p>
+                    <p>🏅 Champion - Complete 10 fasting quests</p>
+                    <p>💎 Elite - Reach maximum fasting mastery</p>
+                    <p>🚀 Transcendent - Unlock all achievements</p>
                 </div>
             </div>
             <div class="instructions">

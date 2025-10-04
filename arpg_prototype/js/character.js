@@ -342,6 +342,17 @@ class Character {
         return false;
     }
     
+    upgradeDisciplineRate() {
+        const cost = this.getDisciplineRateUpgradeCost();
+        if (this.discipline >= cost) {
+            this.discipline -= cost;
+            this.baseDisciplineRate += 0.5;
+            this.updateDisciplineRate(); // Recalculate current rate
+            return true;
+        }
+        return false;
+    }
+    
     
     // Cost calculation methods (exponential scaling)
     getLifeUpgradeCost() {
@@ -354,6 +365,12 @@ class Character {
         const baseDamage = 10;
         const currentUpgrades = (this.damage - baseDamage) / 5;
         return Math.floor(15 * Math.pow(1.6, currentUpgrades));
+    }
+    
+    getDisciplineRateUpgradeCost() {
+        const baseRate = 1.0;
+        const currentUpgrades = (this.baseDisciplineRate - baseRate) / 0.5;
+        return Math.floor(25 * Math.pow(2.0, currentUpgrades));
     }
     
     
@@ -389,7 +406,8 @@ class Character {
     getUpgradeCosts() {
         return {
             life: this.getLifeUpgradeCost(),
-            damage: this.getDamageUpgradeCost()
+            damage: this.getDamageUpgradeCost(),
+            disciplineRate: this.getDisciplineRateUpgradeCost()
         };
     }
     
