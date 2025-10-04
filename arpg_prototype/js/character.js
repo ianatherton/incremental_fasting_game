@@ -60,23 +60,50 @@ class Character {
             weapon: false
         };
         
-        // Arm configuration for multi-segment arms (horizontal extension like goal image)
+        // Enhanced noodly arm configuration (Adventure Time style)
         this.armConfig = {
             leftArm: {
                 segments: [
-                    { x: -25, y: -8, rotation: 1.57 },   // Upper arm pointing straight left (90 degrees)
-                    { x: -45, y: -8, rotation: 1.57 },   // Middle arm continuing left
-                    { x: -65, y: -8, rotation: 1.57 }    // Lower arm fully extended left
-                ]
+                    { x: -20, y: -8, rotation: Math.PI, length: 20, velocity: 0, targetRotation: Math.PI },
+                    { x: -35, y: -5, rotation: Math.PI, length: 18, velocity: 0, targetRotation: Math.PI },
+                    { x: -50, y: -3, rotation: Math.PI, length: 16, velocity: 0, targetRotation: Math.PI },
+                    { x: -62, y: -2, rotation: Math.PI, length: 14, velocity: 0, targetRotation: Math.PI },
+                    { x: -72, y: -1, rotation: Math.PI, length: 12, velocity: 0, targetRotation: Math.PI }
+                ],
+                springiness: 0.15,
+                damping: 0.8,
+                followDelay: 0.1
             },
             rightArm: {
                 segments: [
-                    { x: 25, y: -8, rotation: -1.57 },   // Upper arm pointing straight right (90 degrees)
-                    { x: 45, y: -8, rotation: -1.57 },   // Middle arm continuing right
-                    { x: 65, y: -8, rotation: -1.57 }    // Lower arm fully extended right
-                ]
+                    { x: 20, y: -8, rotation: 0, length: 20, velocity: 0, targetRotation: 0 },
+                    { x: 35, y: -5, rotation: 0, length: 18, velocity: 0, targetRotation: 0 },
+                    { x: 50, y: -3, rotation: 0, length: 16, velocity: 0, targetRotation: 0 },
+                    { x: 62, y: -2, rotation: 0, length: 14, velocity: 0, targetRotation: 0 },
+                    { x: 72, y: -1, rotation: 0, length: 12, velocity: 0, targetRotation: 0 }
+                ],
+                springiness: 0.15,
+                damping: 0.8,
+                followDelay: 0.1
             }
         };
+        
+        // Noodly animation state
+        this.noodlyState = {
+            lastAttackTime: 0,
+            whipIntensity: 0,
+            swayOffset: 0
+        };
+        
+        // Attack system
+        this.attackPatterns = [
+            { name: 'slash', direction: 'horizontal', angle: Math.PI, duration: 800 },
+            { name: 'thrust', direction: 'forward', angle: Math.PI * 0.5, duration: 600 },
+            { name: 'overhead', direction: 'vertical', angle: Math.PI * 1.5, duration: 1000 },
+            { name: 'uppercut', direction: 'upward', angle: -Math.PI * 0.5, duration: 700 },
+            { name: 'spin', direction: 'circular', angle: Math.PI * 2, duration: 1200 }
+        ];
+        this.currentAttackPattern = 0;
         
         // Animation offsets for different parts
         this.partOffsets = {
@@ -163,6 +190,7 @@ class Character {
         this.handleMovement();
         this.updateAnimation(deltaTime);
         this.updateAttack(deltaTime);
+        this.updateNoodlyArms(deltaTime);
         this.updateDiscipline();
     }
     
@@ -245,10 +273,105 @@ class Character {
     attack() {
         if (this.state !== 'attacking') {
             this.state = 'attacking';
-            this.attackTimer = 1500; // 1.5 second attack duration for smooth animation
+            
+            // Cycle through attack patterns
+            const pattern = this.attackPatterns[this.currentAttackPattern];
+            this.attackTimer = pattern.duration;
             this.attackProgress = 0;
             this.animationFrame = 0;
+            this.currentAttackAngle = pattern.angle;
+            this.currentAttackDirection = pattern.direction;
+            
+            // Cycle to next pattern for next attack
+            this.currentAttackPattern = (this.currentAttackPattern + 1) % this.attackPatterns.length;
+            
+            console.log(`Performing ${pattern.name} attack!`);
         }
+    }
+    
+    updateNoodlyArms(deltaTime) {
+        const currentTime = Date.now();
+        
+        // Update whip intensity (decays over time after attacks)
+        if (this.state === 'attacking') {
+            this.noodlyState.whipIntensity = Math.max(this.noodlyState.whipIntensity, 1.0);
+            this.noodlyState.lastAttackTime = currentTime;
+        } else {
+            const timeSinceAttack = (currentTime - this.noodlyState.lastAttackTime) / 1000;
+            this.noodlyState.whipIntensity = Math.max(0, 1.0 - timeSinceAttack * 2);
+        }
+        
+        // Gentle idle sway
+        this.noodlyState.swayOffset += deltaTime * 0.002;
+        const idleSway = Math.sin(this.noodlyState.swayOffset) * 0.1;
+        
+        // Update each arm with physics
+        ['leftArm', 'rightArm'].forEach(armName => {
+            const arm = this.armConfig[armName];
+            const isLeft = armName === 'leftArm';
+            
+            arm.segments.forEach((segment, index) => {
+                // Calculate target rotation based on state
+                let targetInfluence = 0;
+                
+                if (this.state === 'attacking') {
+                    // Only animate the right arm (weapon arm) during attacks
+                    if (!isLeft) {
+                        const attackProgress = this.attackProgress;
+                        const whipDelay = index * arm.followDelay;
+                        const segmentProgress = Math.max(0, attackProgress - whipDelay);
+                        
+                        if (segmentProgress > 0) {
+                            // Different attack patterns
+                            let attackInfluence = 0;
+                            
+                            switch (this.currentAttackDirection) {
+                                case 'horizontal':
+                                    // Horizontal slash
+                                    attackInfluence = Math.sin(segmentProgress * Math.PI) * 1.2;
+                                    break;
+                                case 'forward':
+                                    // Forward thrust
+                                    attackInfluence = Math.sin(segmentProgress * Math.PI * 2) * 0.8;
+                                    break;
+                                case 'vertical':
+                                    // Overhead chop
+                                    attackInfluence = -Math.sin(segmentProgress * Math.PI) * 1.5;
+                                    break;
+                                case 'upward':
+                                    // Uppercut
+                                    attackInfluence = -Math.sin(segmentProgress * Math.PI) * 1.0;
+                                    break;
+                                case 'circular':
+                                    // Spinning attack
+                                    attackInfluence = Math.sin(segmentProgress * Math.PI * 4) * 0.6;
+                                    break;
+                            }
+                            
+                            targetInfluence = attackInfluence * this.noodlyState.whipIntensity * (1 + index * 0.4);
+                        }
+                    }
+                    // Left arm stays calm during attacks
+                } else if (this.state === 'walking') {
+                    // Bouncy walk motion
+                    const walkSway = Math.sin(this.animationFrame + index * 0.5) * 0.2;
+                    targetInfluence = walkSway * (isLeft ? 1 : -1);
+                }
+                
+                // Add idle sway
+                targetInfluence += idleSway * (1 + index * 0.2);
+                
+                // Apply target rotation with base rotation
+                const baseRotation = isLeft ? Math.PI + index * 0.05 : 0 - index * 0.05;
+                segment.targetRotation = baseRotation + targetInfluence;
+                
+                // Spring physics
+                const rotationDiff = segment.targetRotation - segment.rotation;
+                segment.velocity += rotationDiff * arm.springiness;
+                segment.velocity *= arm.damping;
+                segment.rotation += segment.velocity;
+            });
+        });
     }
     
     updateDiscipline() {
@@ -483,18 +606,35 @@ class Character {
         
         if (!armSprite || !armSprite.complete || !fistSprite || !fistSprite.complete) return;
         
-        // Calculate smooth sword swing animation
+        // Calculate smooth weapon swing animation based on attack pattern
         const swingProgress = this.state === 'attacking' ? this.attackProgress : 0;
         
-        // Create a smooth slash motion: starts slow, accelerates, then decelerates
-        // Using easeInOutQuart for dramatic effect
+        // Create a smooth motion: starts slow, accelerates, then decelerates
         const easeProgress = swingProgress < 0.5 
             ? 8 * swingProgress * swingProgress * swingProgress * swingProgress
             : 1 - 8 * (1 - swingProgress) * (1 - swingProgress) * (1 - swingProgress) * (1 - swingProgress);
             
-        // Create a wide slash arc from -90 degrees to +90 degrees
-        const swingAngle = this.state === 'attacking' ? 
-            (easeProgress - 0.5) * Math.PI : 0; // -π/2 to +π/2 radians
+        // Calculate swing angle based on current attack pattern
+        let swingAngle = 0;
+        if (this.state === 'attacking') {
+            switch (this.currentAttackDirection) {
+                case 'horizontal':
+                    swingAngle = (easeProgress - 0.5) * Math.PI; // Wide horizontal slash
+                    break;
+                case 'forward':
+                    swingAngle = Math.sin(easeProgress * Math.PI) * 0.3; // Quick forward jab
+                    break;
+                case 'vertical':
+                    swingAngle = -easeProgress * Math.PI * 0.8; // Overhead to down
+                    break;
+                case 'upward':
+                    swingAngle = (easeProgress - 1) * Math.PI * 0.6; // Upward sweep
+                    break;
+                case 'circular':
+                    swingAngle = easeProgress * Math.PI * 2; // Full circle
+                    break;
+            }
+        }
         
         // Render both arms with multiple segments
         ['leftArm', 'rightArm'].forEach(armSide => {
@@ -505,32 +645,65 @@ class Character {
             const isRightArm = armSide === 'rightArm';
             const armSwingOffset = isRightArm && this.state === 'attacking' ? swingAngle * 0.8 : 0;
             
-            // Add shoulder movement for more natural motion
-            const shoulderOffset = isRightArm && this.state === 'attacking' ? 
-                Math.sin(swingProgress * Math.PI) * 8 : 0;
+            // Add shoulder movement for more natural motion (only for weapon arm)
+            let shoulderOffset = 0;
+            if (isRightArm && this.state === 'attacking') {
+                switch (this.currentAttackDirection) {
+                    case 'horizontal':
+                        shoulderOffset = Math.sin(swingProgress * Math.PI) * 8;
+                        break;
+                    case 'forward':
+                        shoulderOffset = Math.sin(swingProgress * Math.PI * 2) * 4;
+                        break;
+                    case 'vertical':
+                        shoulderOffset = Math.sin(swingProgress * Math.PI) * 12;
+                        break;
+                    case 'upward':
+                        shoulderOffset = Math.sin(swingProgress * Math.PI) * 6;
+                        break;
+                    case 'circular':
+                        shoulderOffset = Math.sin(swingProgress * Math.PI * 4) * 3;
+                        break;
+                }
+            }
             
-            // Render arm segments
+            // Render noodly arm segments with physics-based positioning
+            let currentX = 0;
+            let currentY = 0;
+            
             armData.segments.forEach((segment, index) => {
                 ctx.save();
                 
-                // Position for this segment with enhanced swing animation and torso bounce
-                const segmentX = segment.x + (attackOffset * (isRightArm ? 1 : -1)) + (isRightArm ? shoulderOffset : 0);
-                const segmentY = segment.y + attackOffset * 0.5 + (isRightArm ? shoulderOffset * 0.3 : 0) + torsoBounce;
+                // Calculate position based on previous segment (chain physics)
+                if (index === 0) {
+                    // First segment starts at shoulder
+                    currentX = (isRightArm ? 15 : -15) + (isRightArm ? shoulderOffset : 0);
+                    currentY = -8 + torsoBounce;
+                } else {
+                    // Each segment connects to the end of the previous one
+                    const prevSegment = armData.segments[index - 1];
+                    currentX += Math.cos(prevSegment.rotation) * prevSegment.length;
+                    currentY += Math.sin(prevSegment.rotation) * prevSegment.length;
+                }
                 
-                ctx.translate(segmentX, segmentY);
+                ctx.translate(currentX, currentY);
                 
-                // Apply swing rotation to right arm during attack
-                const segmentRotation = segment.rotation + (armSwingOffset * 0.3);
+                // Use dynamic rotation from physics system
+                const segmentRotation = segment.rotation + (armSwingOffset * 0.2 * (1 - index * 0.1));
                 ctx.rotate(segmentRotation);
                 
-                // Draw arm segment
+                // Draw arm segment with slight scaling for noodly effect
+                const scaleX = 1 + Math.sin(this.noodlyState.swayOffset + index) * 0.05;
+                const scaleY = 1 + Math.cos(this.noodlyState.swayOffset + index * 0.7) * 0.03;
+                ctx.scale(scaleX, scaleY);
+                
                 ctx.drawImage(armSprite, -armSprite.width/2, -armSprite.height/2);
                 
                 // Track the end position of the last segment for fist placement
                 if (index === armData.segments.length - 1) {
                     lastSegmentEnd = {
-                        x: segmentX + Math.cos(segmentRotation) * (armSprite.width * 0.5),
-                        y: segmentY + Math.sin(segmentRotation) * (armSprite.width * 0.5)
+                        x: currentX + Math.cos(segmentRotation) * segment.length,
+                        y: currentY + Math.sin(segmentRotation) * segment.length
                     };
                 }
                 
@@ -548,20 +721,36 @@ class Character {
                 (armSwingOffset * 0.5) + (wristSnapProgress * 0.8) : 0;
             ctx.rotate(fistRotation);
             
-            ctx.drawImage(fistSprite, -fistSprite.width/2, -fistSprite.height/2);
-            
-            // Render weapon attached to right fist (inherits fist rotation)
+            // Render weapon first (behind fist) attached to right fist
             if (this.partVisibility.weapon && weaponSprite && weaponSprite.complete && isRightArm) {
+                ctx.save();
+                
                 // Position weapon relative to fist (weapon inherits all fist transformations)
-                const weaponOffsetX = fistSprite.width * 0.3;
-                const weaponOffsetY = -fistSprite.height * 0.2;
+                const weaponOffsetX = fistSprite.width * 0.2;
+                const weaponOffsetY = fistSprite.height * 0.1;
                 ctx.translate(weaponOffsetX, weaponOffsetY);
                 
                 // Only add a small base rotation - weapon inherits all swing motion from fist
-                const baseWeaponRotation = 0.2; // Base sword angle relative to fist
+                const baseWeaponRotation = 0.3; // Base sword angle relative to fist
                 ctx.rotate(baseWeaponRotation);
                 
-                ctx.drawImage(weaponSprite, -weaponSprite.width/2, -weaponSprite.height/2);
+                // Anchor weapon at bottom quarter (75% down from top)
+                const anchorX = -weaponSprite.width/2;
+                const anchorY = -weaponSprite.height * 0.75; // Bottom quarter anchor
+                ctx.drawImage(weaponSprite, anchorX, anchorY);
+                
+                ctx.restore();
+            }
+            
+            // Render fist on top of weapon (flip right fist horizontally)
+            if (isRightArm) {
+                // Flip the right fist horizontally
+                ctx.scale(-1, 1);
+                ctx.drawImage(fistSprite, -fistSprite.width/2, -fistSprite.height/2);
+                ctx.scale(-1, 1); // Restore scale
+            } else {
+                // Left fist renders normally
+                ctx.drawImage(fistSprite, -fistSprite.width/2, -fistSprite.height/2);
             }
             
             ctx.restore();
